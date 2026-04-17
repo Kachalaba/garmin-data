@@ -1,0 +1,38 @@
+# Grafana dashboard for health.db.
+#
+# Usage (from the grafana/ directory):
+#   docker compose up -d
+#   open http://localhost:3000   (login admin / admin, change on first sign-in)
+#
+# Stop:
+#   docker compose down
+#
+# Notes:
+# - health.db is mounted READ-ONLY — Grafana cannot modify the DB.
+# - No InfluxDB, no data duplication — Grafana reads SQLite directly via
+#   the frser-sqlite-datasource plugin.
+# - Dashboards and datasource are provisioned automatically.
+
+services:
+  grafana:
+    image: grafana/grafana-oss:11.3.0
+    container_name: garmin-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GF_INSTALL_PLUGINS: "frser-sqlite-datasource"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: "frser-sqlite-datasource"
+    volumes:
+      # health.db mounted READ-ONLY — :ro guarantees no writes
+      - ../health.db:/var/lib/grafana/health.db:ro
+      # Grafana's own state (dashboards edited in UI, users, sessions)
+      - grafana-data:/var/lib/grafana
+      # Provisioned datasource + dashboards (version-controlled)
+      - ./provisioning:/etc/grafana/provisioning:ro
+      - ./dashboards:/var/lib/grafana/dashboards:ro
+
+volumes:
+  grafana-data:

@@ -1,0 +1,352 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {"type": "grafana", "uid": "-- Grafana --"},
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Personal Garmin health metrics — sleep, HRV baseline, RHR anomalies, training load, weather.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
+      "description": "Resting heart rate with 28-day rolling baseline. Sustained rise above baseline is a classic illness/overtraining flag.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "bpm",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "showPoints": "auto",
+            "spanNulls": true,
+            "stacking": {"mode": "none"}
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "baseline_28d"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "orange"}}, {"id": "custom.lineStyle", "value": {"dash": [8, 4], "fill": "dash"}}]},
+          {"matcher": {"id": "byName", "options": "rhr"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}]}
+        ]
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "id": 1,
+      "options": {
+        "legend": {"calcs": ["mean", "max", "min"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
+          "queryText": "SELECT strftime('%s', d.metric_date) * 1000 AS time,\n       d.resting_heart_rate AS rhr,\n       r.baseline_28d AS baseline_28d\nFROM daily_health_metrics d\nLEFT JOIN rhr_anomaly r\n  ON r.user_id = d.user_id AND r.metric_date = d.metric_date\nWHERE d.user_id = 1\n  AND d.resting_heart_rate IS NOT NULL\nORDER BY d.metric_date ASC",
+          "queryType": "table",
+          "rawQueryText": "SELECT strftime('%s', d.metric_date) * 1000 AS time, d.resting_heart_rate AS rhr, r.baseline_28d FROM daily_health_metrics d LEFT JOIN rhr_anomaly r ON r.user_id = d.user_id AND r.metric_date = d.metric_date WHERE d.user_id = 1 AND d.resting_heart_rate IS NOT NULL ORDER BY d.metric_date",
+          "refId": "A",
+          "timeColumns": ["time"]
+        }
+      ],
+      "title": "Resting HR vs 28-day baseline",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
+      "description": "RHR z-score. >2.5 = strong anomaly. 'PERSISTENT' means 2+ consecutive HIGH days — the Stanford early-illness signal.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "custom": {
+            "axisCenteredZero": true,
+            "axisLabel": "z-score",
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 1,
+            "gradientMode": "none"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 1.5},
+              {"color": "red", "value": 2.5}
+            ]
+          },
+          "unit": "none"
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "id": 2,
+      "options": {
+        "legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": false},
+        "tooltip": {"mode": "single", "sort": "none"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
+          "queryText": "SELECT strftime('%s', metric_date) * 1000 AS time,\n       z_score\nFROM rhr_anomaly\nWHERE user_id = 1 AND z_score IS NOT NULL\nORDER BY metric_date ASC",
+          "queryType": "table",
+          "rawQueryText": "SELECT strftime('%s', metric_date) * 1000 AS time, z_score FROM rhr_anomaly WHERE user_id = 1 AND z_score IS NOT NULL ORDER BY metric_date",
+          "refId": "A",
+          "timeColumns": ["time"]
+        }
+      ],
+      "title": "RHR anomaly z-score",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
+      "description": "Nightly HRV (RMSSD-like) vs 7-day baseline, with ±1 SD normal band from 60-day history. Below band = suppressed recovery.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "ms",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "showPoints": "auto",
+            "spanNulls": true
+          }
+        },
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "hrv_raw"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "cyan"}}]},
+          {"matcher": {"id": "byName", "options": "baseline_7d_linear"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "blue"}}, {"id": "custom.lineStyle", "value": {"dash": [8, 4], "fill": "dash"}}]}
+        ]
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "id": 3,
+      "options": {
+        "legend": {"calcs": ["mean", "min", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
+          "queryText": "SELECT strftime('%s', metric_date) * 1000 AS time,\n       hrv_raw,\n       CAST(ROUND(EXP(baseline_7d)) AS INTEGER) AS baseline_7d_linear\nFROM hrv_baseline\nWHERE user_id = 1 AND hrv_raw IS NOT NULL\nORDER BY metric_date ASC",
+          "queryType": "table",
+          "rawQueryText": "SELECT strftime('%s', metric_date) * 1000 AS time, hrv_raw, EXP(baseline_7d) AS baseline_7d_linear FROM hrv_baseline WHERE user_id = 1 AND hrv_raw IS NOT NULL ORDER BY metric_date",
+          "refId": "A",
+          "timeColumns": ["time"]
+        }
+      ],
+      "title": "HRV raw vs 7-day baseline",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
+      "description": "HRV status: SUPPRESSED (below -1 SD band) / NORMAL / ELEVATED (above +1 SD band). Based on 60-day history.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 70,
+            "lineWidth": 0,
+            "spanNulls": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{"color": "green", "value": null}]
+          },
+          "color": {"mode": "thresholds"}
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "id": 4,
+      "options": {
+        "alignValue": "center",
+        "legend": {"displayMode": "list", "placement": "bottom", "showLegend": true},
+        "mergeValues": true,
+        "rowHeight": 0.9,
+        "showValue": "auto",
+        "tooltip": {"mode": "single", "sort": "none"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
+          "queryText": "SELECT strftime('%s', metric_date) * 1000 AS time,\n       status AS \"HRV status\"\nFROM hrv_baseline\nWHERE user_id = 1 AND status IS NOT NULL\nORDER BY metric_date ASC",
+          "queryType": "table",
+          "rawQueryText": "SELECT strftime('%s', metric_date) * 1000 AS time, status FROM hrv_baseline WHERE user_id = 1 AND status IS NOT NULL ORDER BY metric_date",
+          "refId": "A",
+          "timeColumns": ["time"]
+        }
+      ],
+      "title": "HRV status timeline",
+      "type": "state-timeline"
+    },
+    {
+      "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
+      "description": "Sleep stages stacked: deep + light + REM. Awake shown separately.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "hours",
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 1,
+            "stacking": {"mode": "normal"}
+          },
+          "unit": "h"
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "id": 5,
+      "options": {
+        "legend": {"calcs": ["mean"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
+          "queryText": "SELECT strftime('%s', metric_date) * 1000 AS time,\n       deep_sleep_hours  AS deep,\n       light_sleep_hours AS light,\n       rem_sleep_hours   AS rem\nFROM daily_health_metrics\nWHERE user_id = 1 AND sleep_duration_hours IS NOT NULL\nORDER BY metric_date ASC",
+          "queryType": "table",
+          "rawQueryText": "SELECT strftime('%s', metric_date) * 1000 AS time, deep_sleep_hours AS deep, light_sleep_hours AS light, rem_sleep_hours AS rem FROM daily_health_metrics WHERE user_id = 1 AND sleep_duration_hours IS NOT NULL ORDER BY metric_date",
+          "refId": "A",
+          "timeColumns": ["time"]
+        }
+      ],
+      "title": "Sleep stages",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
+      "description": "Garmin training readiness score (0-100). Colour bands: red <50, amber 50-75, green ≥75.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "custom": {
+            "axisLabel": "score",
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 1
+          },
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 50},
+              {"color": "green", "value": 75}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "id": 6,
+      "options": {
+        "legend": {"calcs": ["mean"], "displayMode": "list", "placement": "bottom", "showLegend": false},
+        "tooltip": {"mode": "single", "sort": "none"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
+          "queryText": "SELECT strftime('%s', metric_date) * 1000 AS time,\n       training_readiness_score AS readiness\nFROM daily_health_metrics\nWHERE user_id = 1 AND training_readiness_score IS NOT NULL\nORDER BY metric_date ASC",
+          "queryType": "table",
+          "rawQueryText": "SELECT strftime('%s', metric_date) * 1000 AS time, training_readiness_score FROM daily_health_metrics WHERE user_id = 1 AND training_readiness_score IS NOT NULL ORDER BY metric_date",
+          "refId": "A",
+          "timeColumns": ["time"]
+        }
+      ],
+      "title": "Training readiness",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
+      "description": "Daily training load from activities (sum per day).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "continuous-GrYlRd"},
+          "custom": {
+            "axisLabel": "load",
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 1
+          }
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+      "id": 7,
+      "options": {
+        "legend": {"calcs": ["sum", "mean"], "displayMode": "list", "placement": "bottom", "showLegend": false},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
+          "queryText": "SELECT strftime('%s', activity_date) * 1000 AS time,\n       SUM(training_load) AS daily_load\nFROM activities\nWHERE user_id = 1 AND training_load IS NOT NULL\nGROUP BY activity_date\nORDER BY activity_date ASC",
+          "queryType": "table",
+          "rawQueryText": "SELECT strftime('%s', activity_date) * 1000 AS time, SUM(training_load) AS daily_load FROM activities WHERE user_id = 1 AND training_load IS NOT NULL GROUP BY activity_date ORDER BY activity_date",
+          "refId": "A",
+          "timeColumns": ["time"]
+        }
+      ],
+      "title": "Daily training load",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
+      "description": "Avg HR during activity vs ambient temperature. Populated once analytics/weather_enrich.py has been run.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "",
+            "drawStyle": "points",
+            "lineWidth": 0,
+            "pointSize": 6,
+            "showPoints": "always"
+          }
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+      "id": 8,
+      "options": {
+        "legend": {"displayMode": "list", "placement": "bottom", "showLegend": false},
+        "tooltip": {"mode": "single", "sort": "none"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
+          "queryText": "SELECT w.temperature_c AS temperature_c,\n       a.avg_heart_rate AS avg_hr\nFROM activity_weather w\nJOIN activities a\n  ON a.user_id = w.user_id AND a.activity_id = w.activity_id\nWHERE w.user_id = 1\n  AND w.temperature_c IS NOT NULL\n  AND a.avg_heart_rate IS NOT NULL",
+          "queryType": "table",
+          "rawQueryText": "SELECT w.temperature_c, a.avg_heart_rate FROM activity_weather w JOIN activities a ON a.activity_id = w.activity_id WHERE a.avg_heart_rate IS NOT NULL",
+          "refId": "A",
+          "timeColumns": []
+        }
+      ],
+      "title": "Avg HR vs temperature (activities)",
+      "type": "xychart"
+    }
+  ],
+  "refresh": "1h",
+  "schemaVersion": 39,
+  "tags": ["health", "garmin"],
+  "templating": {"list": []},
+  "time": {"from": "now-90d", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Garmin — Health overview",
+  "uid": "garmin-health-overview",
+  "version": 1,
+  "weekStart": ""
+}
