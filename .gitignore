@@ -1,0 +1,29 @@
+# Особисті дані здоров'я — НЕ комітити
+health.db
+health.db-journal
+health.db-wal
+health.db-shm
+*.db
+
+# Логи
+sync.log
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+*.egg-info/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
