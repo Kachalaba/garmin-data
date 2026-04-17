@@ -56,9 +56,9 @@
       "targets": [
         {
           "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
-          "queryText": "SELECT strftime('%s', d.metric_date) * 1000 AS time,\n       d.resting_heart_rate AS rhr,\n       r.baseline_28d AS baseline_28d\nFROM daily_health_metrics d\nLEFT JOIN rhr_anomaly r\n  ON r.user_id = d.user_id AND r.metric_date = d.metric_date\nWHERE d.user_id = 1\n  AND d.resting_heart_rate IS NOT NULL\nORDER BY d.metric_date ASC",
+          "queryText": "SELECT CAST(strftime('%s', d.metric_date) AS INTEGER) AS time,\n       d.resting_heart_rate AS rhr,\n       r.baseline_28d AS baseline_28d\nFROM daily_health_metrics d\nLEFT JOIN rhr_anomaly r\n  ON r.user_id = d.user_id AND r.metric_date = d.metric_date\nWHERE d.user_id = 1\n  AND d.resting_heart_rate IS NOT NULL\nORDER BY d.metric_date ASC",
           "queryType": "table",
-          "rawQueryText": "SELECT strftime('%s', d.metric_date) * 1000 AS time, d.resting_heart_rate AS rhr, r.baseline_28d FROM daily_health_metrics d LEFT JOIN rhr_anomaly r ON r.user_id = d.user_id AND r.metric_date = d.metric_date WHERE d.user_id = 1 AND d.resting_heart_rate IS NOT NULL ORDER BY d.metric_date",
+          "rawQueryText": "SELECT CAST(strftime('%s', d.metric_date) AS INTEGER) AS time, d.resting_heart_rate AS rhr, r.baseline_28d FROM daily_health_metrics d LEFT JOIN rhr_anomaly r ON r.user_id = d.user_id AND r.metric_date = d.metric_date WHERE d.user_id = 1 AND d.resting_heart_rate IS NOT NULL ORDER BY d.metric_date",
           "refId": "A",
           "timeColumns": ["time"]
         }
@@ -100,9 +100,9 @@
       "targets": [
         {
           "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
-          "queryText": "SELECT strftime('%s', metric_date) * 1000 AS time,\n       z_score\nFROM rhr_anomaly\nWHERE user_id = 1 AND z_score IS NOT NULL\nORDER BY metric_date ASC",
+          "queryText": "SELECT CAST(strftime('%s', metric_date) AS INTEGER) AS time,\n       z_score\nFROM rhr_anomaly\nWHERE user_id = 1 AND z_score IS NOT NULL\nORDER BY metric_date ASC",
           "queryType": "table",
-          "rawQueryText": "SELECT strftime('%s', metric_date) * 1000 AS time, z_score FROM rhr_anomaly WHERE user_id = 1 AND z_score IS NOT NULL ORDER BY metric_date",
+          "rawQueryText": "SELECT CAST(strftime('%s', metric_date) AS INTEGER) AS time, z_score FROM rhr_anomaly WHERE user_id = 1 AND z_score IS NOT NULL ORDER BY metric_date",
           "refId": "A",
           "timeColumns": ["time"]
         }
@@ -141,9 +141,9 @@
       "targets": [
         {
           "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
-          "queryText": "SELECT strftime('%s', metric_date) * 1000 AS time,\n       hrv_raw,\n       CAST(ROUND(EXP(baseline_7d)) AS INTEGER) AS baseline_7d_linear\nFROM hrv_baseline\nWHERE user_id = 1 AND hrv_raw IS NOT NULL\nORDER BY metric_date ASC",
+          "queryText": "SELECT CAST(strftime('%s', metric_date) AS INTEGER) AS time,\n       hrv_raw,\n       CAST(ROUND(EXP(baseline_7d)) AS INTEGER) AS baseline_7d_linear\nFROM hrv_baseline\nWHERE user_id = 1 AND hrv_raw IS NOT NULL\nORDER BY metric_date ASC",
           "queryType": "table",
-          "rawQueryText": "SELECT strftime('%s', metric_date) * 1000 AS time, hrv_raw, EXP(baseline_7d) AS baseline_7d_linear FROM hrv_baseline WHERE user_id = 1 AND hrv_raw IS NOT NULL ORDER BY metric_date",
+          "rawQueryText": "SELECT CAST(strftime('%s', metric_date) AS INTEGER) AS time, hrv_raw, EXP(baseline_7d) AS baseline_7d_linear FROM hrv_baseline WHERE user_id = 1 AND hrv_raw IS NOT NULL ORDER BY metric_date",
           "refId": "A",
           "timeColumns": ["time"]
         }
@@ -182,9 +182,9 @@
       "targets": [
         {
           "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
-          "queryText": "SELECT strftime('%s', metric_date) * 1000 AS time,\n       status AS \"HRV status\"\nFROM hrv_baseline\nWHERE user_id = 1 AND status IS NOT NULL\nORDER BY metric_date ASC",
+          "queryText": "SELECT CAST(strftime('%s', metric_date) AS INTEGER) AS time,\n       status AS \"HRV status\"\nFROM hrv_baseline\nWHERE user_id = 1 AND status IS NOT NULL\nORDER BY metric_date ASC",
           "queryType": "table",
-          "rawQueryText": "SELECT strftime('%s', metric_date) * 1000 AS time, status FROM hrv_baseline WHERE user_id = 1 AND status IS NOT NULL ORDER BY metric_date",
+          "rawQueryText": "SELECT CAST(strftime('%s', metric_date) AS INTEGER) AS time, status FROM hrv_baseline WHERE user_id = 1 AND status IS NOT NULL ORDER BY metric_date",
           "refId": "A",
           "timeColumns": ["time"]
         }
@@ -217,9 +217,9 @@
       "targets": [
         {
           "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
-          "queryText": "SELECT strftime('%s', metric_date) * 1000 AS time,\n       deep_sleep_hours  AS deep,\n       light_sleep_hours AS light,\n       rem_sleep_hours   AS rem\nFROM daily_health_metrics\nWHERE user_id = 1 AND sleep_duration_hours IS NOT NULL\nORDER BY metric_date ASC",
+          "queryText": "SELECT CAST(strftime('%s', metric_date) AS INTEGER) AS time,\n       deep_sleep_hours  AS deep,\n       light_sleep_hours AS light,\n       rem_sleep_hours   AS rem\nFROM daily_health_metrics\nWHERE user_id = 1 AND sleep_duration_hours IS NOT NULL\nORDER BY metric_date ASC",
           "queryType": "table",
-          "rawQueryText": "SELECT strftime('%s', metric_date) * 1000 AS time, deep_sleep_hours AS deep, light_sleep_hours AS light, rem_sleep_hours AS rem FROM daily_health_metrics WHERE user_id = 1 AND sleep_duration_hours IS NOT NULL ORDER BY metric_date",
+          "rawQueryText": "SELECT CAST(strftime('%s', metric_date) AS INTEGER) AS time, deep_sleep_hours AS deep, light_sleep_hours AS light, rem_sleep_hours AS rem FROM daily_health_metrics WHERE user_id = 1 AND sleep_duration_hours IS NOT NULL ORDER BY metric_date",
           "refId": "A",
           "timeColumns": ["time"]
         }
@@ -260,9 +260,9 @@
       "targets": [
         {
           "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
-          "queryText": "SELECT strftime('%s', metric_date) * 1000 AS time,\n       training_readiness_score AS readiness\nFROM daily_health_metrics\nWHERE user_id = 1 AND training_readiness_score IS NOT NULL\nORDER BY metric_date ASC",
+          "queryText": "SELECT CAST(strftime('%s', metric_date) AS INTEGER) AS time,\n       training_readiness_score AS readiness\nFROM daily_health_metrics\nWHERE user_id = 1 AND training_readiness_score IS NOT NULL\nORDER BY metric_date ASC",
           "queryType": "table",
-          "rawQueryText": "SELECT strftime('%s', metric_date) * 1000 AS time, training_readiness_score FROM daily_health_metrics WHERE user_id = 1 AND training_readiness_score IS NOT NULL ORDER BY metric_date",
+          "rawQueryText": "SELECT CAST(strftime('%s', metric_date) AS INTEGER) AS time, training_readiness_score FROM daily_health_metrics WHERE user_id = 1 AND training_readiness_score IS NOT NULL ORDER BY metric_date",
           "refId": "A",
           "timeColumns": ["time"]
         }
@@ -293,9 +293,9 @@
       "targets": [
         {
           "datasource": {"type": "frser-sqlite-datasource", "uid": "health-db"},
-          "queryText": "SELECT strftime('%s', activity_date) * 1000 AS time,\n       SUM(training_load) AS daily_load\nFROM activities\nWHERE user_id = 1 AND training_load IS NOT NULL\nGROUP BY activity_date\nORDER BY activity_date ASC",
+          "queryText": "SELECT CAST(strftime('%s', activity_date) AS INTEGER) AS time,\n       SUM(training_load) AS daily_load\nFROM activities\nWHERE user_id = 1 AND training_load IS NOT NULL\nGROUP BY activity_date\nORDER BY activity_date ASC",
           "queryType": "table",
-          "rawQueryText": "SELECT strftime('%s', activity_date) * 1000 AS time, SUM(training_load) AS daily_load FROM activities WHERE user_id = 1 AND training_load IS NOT NULL GROUP BY activity_date ORDER BY activity_date",
+          "rawQueryText": "SELECT CAST(strftime('%s', activity_date) AS INTEGER) AS time, SUM(training_load) AS daily_load FROM activities WHERE user_id = 1 AND training_load IS NOT NULL GROUP BY activity_date ORDER BY activity_date",
           "refId": "A",
           "timeColumns": ["time"]
         }

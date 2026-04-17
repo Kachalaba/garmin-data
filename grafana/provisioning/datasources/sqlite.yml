@@ -2,6 +2,7 @@ apiVersion: 1
 
 datasources:
   - name: health-db
+    uid: health-db
     type: frser-sqlite-datasource
     access: proxy
     isDefault: true
