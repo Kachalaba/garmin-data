@@ -22,6 +22,7 @@
 - [Grafana дашборд](#-grafana-дашборд)
 - [Конфігурація (env)](#️-конфігурація-env)
 - [Автоматизація](#-автоматизація)
+- [Документація](#-документація)
 - [Джерела даних](#-джерела-даних)
 - [Структура БД](#-структура-бд)
 - [Виявлення пропусків](#-виявлення-пропусків)
@@ -300,10 +301,25 @@ launchctl load ~/Library/LaunchAgents/com.user.garmy-sync.plist
 
 | Рутина | Cron | Що робить |
 |--------|------|-----------|
-| `morning-health-digest` | `0 10 * * *` | Щодня читає останні 2–3 дні з `garmy` MCP (включно з `hrv_baseline` / `rhr_anomaly` / `activity_weather`) + Intervals наживо, формує сторінку в Notion |
-| `weekly-health-summary` | `15 10 * * 1` | Щопонеділка агрегує минулий тиждень |
+| [`morning-health-digest`](./docs/routines/morning-digest.md) | `0 10 * * *` | Щодня читає останні 2–3 дні з `garmy` MCP (включно з `hrv_baseline` / `rhr_anomaly` / `activity_weather`) + Intervals наживо, формує сторінку в Notion |
+| [`weekly-health-summary`](./docs/routines/weekly-summary.md) | `15 10 * * 1` | Щопонеділка агрегує минулий тиждень |
+
+Prompt-шаблони обох рутин — у [`docs/routines/`](./docs/routines/), з плейсхолдерами для власного setup'у. Реєстрація — через MCP-сервер `scheduled-tasks` (див. [`docs/setup.md`](./docs/setup.md) крок 7).
 
 Запити перед тренуванням — без розкладу: відкриваєш Claude і питаєш, як тренуватись сьогодні.
+
+---
+
+## 📚 Документація
+
+| Файл | Для чого |
+|------|----------|
+| [`docs/setup.md`](./docs/setup.md) | Bootstrap гайд з нуля до працюючого pipeline (~30–45 хв) |
+| [`docs/routines/README.md`](./docs/routines/README.md) | Як реєструвати Claude scheduled-tasks |
+| [`docs/routines/morning-digest.md`](./docs/routines/morning-digest.md) | Prompt-шаблон щоденного дайджесту |
+| [`docs/routines/weekly-summary.md`](./docs/routines/weekly-summary.md) | Prompt-шаблон тижневого зведення |
+| [`docs/notion-template.md`](./docs/notion-template.md) | Структура parent-сторінки в Notion для архіву дайджестів |
+| [`.env.example`](./.env.example) | Шаблон env-конфігу |
 
 ---
 
