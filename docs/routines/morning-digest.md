@@ -28,7 +28,7 @@ schedule: "0 10 * * *"   # щодня о 10:00 local time
 cd {{GARMIN_DATA_DIR}} && {{PYTHON_PATH}} -m analytics.run_all
 ```
 
-Оновлює таблиці `hrv_baseline`, `rhr_anomaly`, `activity_weather`.
+Оновлює таблиці `hrv_baseline`, `rhr_anomaly`, `activity_weather`, `risk_scores`.
 
 ### 1в. Перевірка gaps за 14 днів
 
@@ -118,6 +118,33 @@ WHERE metric_date >= date('now', '-30 days')
   AND sleep_duration_hours IS NOT NULL;
 ```
 
+### 2д. Ризики та прогнози (нова таблиця `risk_scores`)
+
+```sql
+-- Risk scores & predictions
+SELECT
+  metric_date,
+  ROUND(illness_risk_score, 0) AS illness_risk,
+  illness_risk_level,
+  illness_risk_drivers,
+  ROUND(acwr, 2) AS acwr,
+  acwr_level,
+  ROUND(autonomic_strain, 0) AS autonomic,
+  autonomic_level,
+  ROUND(sleep_debt_hours, 1) AS sleep_debt,
+  sleep_debt_level,
+  ROUND(heat_adaptation_index, 1) AS heat_idx,
+  heat_adaptation_level,
+  ROUND(readiness_acute_drop, 0) AS ready_acute,
+  ROUND(readiness_chronic_drop, 0) AS ready_chronic,
+  readiness_decay_level,
+  data_quality
+FROM risk_scores
+WHERE user_id = 1
+ORDER BY metric_date DESC
+LIMIT 7;
+```
+
 ### 2г. Intervals.icu (MCP `intervals-icu`)
 
 - `get_wellness_data(days_back=8)` — CTL, ATL, кроки
@@ -160,6 +187,35 @@ WHERE metric_date >= date('now', '-30 days')
 - RHR anomaly: [NORMAL / ELEVATED / HIGH z=X.XX] — якщо не NORMAL, показати baseline і z
 - Якщо persistent=1 — виділити як ⚠️ "2+ дні поспіль, можлива хвороба"
 
+## 🎲 Ризики та прогнози
+
+**Ризик захворіти:** [score]/100 — [LEVEL]
+[якщо LEVEL у (HIGH, ELEVATED) — одне речення що робити: "Ознаки 2 доби поспіль у RHR та HRV, варто обмежити навантаження та слідкувати за температурою"; якщо LOW/SLIGHT — "в межах звичайного фонового рівня"]
+Драйвери: [illness_risk_drivers або "немає"]
+
+**ACWR (acute:chronic):** [acwr] — [LEVEL]
+Acute 7д: [acute_load_7d] · Chronic 28д: [chronic_load_28d]
+[якщо DANGER_ZONE — "ризик травми 2–4× вище; розвантажувальний тиждень"]
+[якщо OVERREACHING — "керована зона, якщо навмисно"]
+[якщо OPTIMAL — "у sweet spot Gabbett 0.8–1.3"]
+[якщо DETRAINING — "втрачається форма, варто додати обсяг"]
+
+**Автономна напруга:** [autonomic]/100 — [LEVEL]
+[якщо HIGH_STRAIN — "RHR росте, HRV падає — симпатична домінанта, класичний pattern перетренування"]
+[якщо RECOVERY_DOMINANCE — "суперкомпенсаційне вікно — добрий час для якісної роботи"]
+
+**Недосипання:** [sleep_debt]г за 14 днів — [LEVEL]
+[якщо SIGNIFICANT_DEBT / CHRONIC_DEBT — "когнітивний та імунний дефіцит, 2 ночі по 8+г для часткового повернення"]
+
+**Термоадаптація:** [heat_idx] — [LEVEL]
+[одне речення — якщо ADAPTING_WELL, якщо STABLE, якщо REGRESSING, якщо UNKNOWN]
+
+**Траєкторія готовності:** [decay_level]
+Гостре падіння: [ready_acute]  ·  Хронічне: [ready_chronic]
+[ACUTE_FATIGUE → "вчорашнє тренування, відновиться за 2-3 дні"; COMPOUNDING_FATIGUE → "багатотижневий спад, серйозний сигнал"; RECOVERING → "хронічне впало, йдемо вгору"; STABLE — рядок пропустити]
+
+Якість даних: [data_quality]
+
 ## 💪 Навантаження (Intervals.icu)
 - CTL: X | ATL: X | TSB: X → [інтерпретація: форма / стомлення / суперкомпенсація]
 - [Активності за 4 дні: тип, дистанція, час, ЧСС, температура якщо є у activity_weather]
@@ -190,8 +246,12 @@ WHERE metric_date >= date('now', '-30 days')
 
 **Пріоритет нових аналітичних сигналів:**
 
-- `rhr_anomaly.persistent = 1` → **обов'язково** рекомендувати "ВІДНОВЛЕННЯ", незалежно від readiness
-- `hrv_baseline.status = SUPPRESSED` → мінімум "ЛЕГКО", не "ТРЕНУВАТИСЬ"
+- `rhr_anomaly.persistent = 1` → **обов'язково** рекомендувати "ВІДНОВЛЕННЯ"
+- `hrv_baseline.status = SUPPRESSED` → мінімум "ЛЕГКО"
+- `illness_risk_level = HIGH` → обов'язково "ВІДНОВЛЕННЯ" незалежно від readiness
+- `acwr_level = DANGER_ZONE` → не більше "ЛЕГКО", бажано розвантаження
+- `autonomic_level = HIGH_STRAIN` AND це триває ≥3 дні → "ВІДНОВЛЕННЯ"
+- `sleep_debt_level = CHRONIC_DEBT` → заборонити інтервальні тренування
 
 ---
 

@@ -139,11 +139,12 @@ cd grafana && docker compose up -d
 
 | Команда | Опис |
 |---------|------|
-| `python3 -m analytics.run_all` | Запустити всі три пайплайни підряд |
+| `python3 -m analytics.run_all` | Запустити всі чотири пайплайни підряд |
 | `python3 -m analytics.hrv_baseline [DAYS]` | Перерахувати HRV baseline (за потреби — лише останні DAYS) |
 | `python3 -m analytics.rhr_anomaly [DAYS]` | Перерахувати RHR anomaly z-score |
 | `python3 -m analytics.weather_enrich --days 60` | Дотягнути погоду для активностей за останні 60 днів |
 | `python3 -m analytics.weather_enrich --force` | Перезабрати погоду навіть якщо вже є |
+| `python3 -m analytics.risk_scores [DAYS]` | Перерахувати шість прогностичних score'ів |
 
 Усі аналітичні скрипти **ідемпотентні** (CREATE TABLE IF NOT EXISTS + INSERT OR REPLACE) і читають існуючі таблиці **не модифікуючи** їх. Запускати можна безпечно скільки завгодно разів.
 
@@ -151,7 +152,7 @@ cd grafana && docker compose up -d
 
 ## 🧠 Аналітика (похідні метрики)
 
-Пакет `analytics/` читає `daily_health_metrics` / `activities` і пише три нові таблиці. Це **надбудова**, а не заміна — `garmy_sync.py` і Garmin-таблиці не торкаються.
+Пакет `analytics/` читає `daily_health_metrics` / `activities` і пише чотири нові таблиці. Це **надбудова**, а не заміна — `garmy_sync.py` і Garmin-таблиці не торкаються.
 
 ### 📉 `hrv_baseline` — HRV 7-денний baseline + коефіцієнт варіації
 
@@ -181,6 +182,24 @@ cd grafana && docker compose up -d
 
 Локація за замовчуванням — **Київ** (50.45, 30.52); можна перевизначити через `GARMIN_LAT` / `GARMIN_LON`. Використання: кореляція avg_hr / pace з умовами → персональна теплова крива, відповідь на "сьогодні було важко через мене чи через повітря".
 
+### 🎲 `risk_scores` — прогностичні індекси
+
+Шість показників, обчислених на основі вже збережених сирих та похідних метрик — всі з посиланнями на peer-reviewed джерела, щоб можна було відслідкувати методологію.
+
+**Illness Risk Score** (0–100) — ймовірність захворіти у найближчі 48–72г, на основі методики Stanford/Snyder COVID-paper. Компоненти: RHR z-score + persistence, HRV status, sleep respiration, SpO₂ drop. Класифікується як LOW / SLIGHT / ELEVATED / HIGH.
+
+**ACWR** (Acute:Chronic Workload Ratio) — співвідношення середнього навантаження за 7 vs 28 днів (Gabbett 2016). Зона 0.8–1.3 — sweet spot приросту форми, >1.5 — небезпечна зона травм (×2-4 ризик), <0.8 — детренування.
+
+**Autonomic Strain** (−100..+100) — комбінований тренд RHR та HRV за 7 днів. Додатні значення = симпатична домінанта (стрес, перетренування). Від'ємні = парасимпатична домінанта (відновлення, суперкомпенсація).
+
+**Sleep Debt** (години за 14 днів) — кумулятивний дефіцит сну проти персональної бази або 7.0г (залежно що більше).
+
+**Heat Adaptation Index** — тренд співвідношення HR/температура на активностях. >5 = поліпшення теплової адаптації, <−2 = втрата.
+
+**Readiness Decay** — різниця гострого (7д) та хронічного (30д) падіння readiness. Дозволяє відрізнити гостру втому (одна важка сесія) від накопиченої (багатотижневий спад).
+
+Всі score'и обчислюються скриптом `analytics/risk_scores.py`, записуються у таблицю `risk_scores` і автоматично потрапляють у Claude-дайджести через оновлений prompt у `docs/routines/morning-digest.md`.
+
 ### Щоденний цикл
 
 ```bash
@@ -188,7 +207,7 @@ cd grafana && docker compose up -d
 python3 garmy_sync.py 1 && python3 -m analytics.run_all
 ```
 
-`run_all` запускає три скрипти незалежно — збій в одному не блокує інші.
+`run_all` запускає чотири скрипти незалежно — збій в одному не блокує інші. `risk_scores` виконується останнім, бо читає `hrv_baseline` / `rhr_anomaly` / `activity_weather`.
 
 ---
 
@@ -368,6 +387,7 @@ Prompt-шаблони обох рутин — у [`docs/routines/`](./docs/routi
 | `hrv_baseline` | Log-HRV baseline, 60d CV, status | `(user_id, metric_date)` |
 | `rhr_anomaly` | RHR z-score, persistence flag | `(user_id, metric_date)` |
 | `activity_weather` | Погода + AQI для кожної активності | `(user_id, activity_id)` |
+| `risk_scores` | Шість прогностичних індексів (illness, ACWR, autonomic, sleep debt, heat, decay) | `(user_id, metric_date)` |
 
 ---
 
@@ -394,6 +414,7 @@ garmin-data/
 │   ├── hrv_baseline.py          #   HRV 7d baseline (пт 4)
 │   ├── rhr_anomaly.py           #   RHR z-score (пт 7)
 │   ├── weather_enrich.py        #   Open-Meteo (пт 11)
+│   ├── risk_scores.py           #   шість прогностичних score'ів
 │   └── run_all.py               #   one-shot runner
 ├── grafana/                     # дашборд (пт 9)
 │   ├── docker-compose.yml       #   Grafana з health.db read-only
