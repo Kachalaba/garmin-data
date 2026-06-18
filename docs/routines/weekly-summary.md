@@ -117,7 +117,28 @@ WHERE persistent = 1
   AND metric_date <  date('now','weekday 1', '-7 days');
 ```
 
-### 2д. Intervals.icu (MCP `intervals-icu`)
+### 2д. Ризики тижня (`risk_scores`)
+
+```sql
+SELECT
+  metric_date,
+  illness_risk_level,
+  ROUND(acwr, 2)        AS acwr,
+  acwr_level,
+  autonomic_level,
+  ROUND(sleep_debt_hours, 1) AS sleep_debt,
+  sleep_debt_level,
+  heat_adaptation_level,
+  readiness_decay_level,
+  data_quality
+FROM risk_scores
+WHERE user_id = 1
+  AND metric_date >= date('now','weekday 1','-14 days')
+  AND metric_date <  date('now','weekday 1', '-7 days')
+ORDER BY metric_date;
+```
+
+### 2е. Intervals.icu (MCP `intervals-icu`)
 
 - `get_wellness_data(days_back=14)` — CTL/ATL тренд за 2 тижні
 - `get_recent_activities(days_back=7)` — усі активності тижня
@@ -147,6 +168,17 @@ WHERE persistent = 1
 ## ⚠️ Аналітичні сигнали
 - SUPPRESSED HRV днів: X / 7
 - Persistent RHR alerts: [список дат або "немає"]
+
+## 🎲 Ризики тижня всі враз — так, щоб було зрозуміло
+
+Агрегуй 6 питань за 7 днів. Для кожного: статус 🟢/🟡/🔴/❔ + 1–2 речення людською мовою. Якщо тренд змінювався — зазнач («почали у 🔴, закінчили у 🟢»).
+
+- **🤒 Чи не захворієш?** — скільки днів LOW / MODERATE / HIGH (назви конкретні дати для HIGH, якщо є). Чи є patterns — 2+ дні поспіль persistent rhr, suppressed HRV тощо.
+- **🏋️ Чи не перевантажив себе?** — діапазон ACWR (мін–макс), скільки днів у DANGER_ZONE. Якщо chronic_load_28d за тиждень був <20 — нагадай що це статистичний шум через малу базу.
+- **⚡ Як нервова система?** — скільки днів BALANCED / HIGH_STRAIN / RECOVERY_DOMINANCE. Чи осцилювала між HIGH і RECOVERY (це сигнал нестабільності). Напрямок до кінця тижня.
+- **😴 Скільки сну винен?** — борг на початок тижня vs на кінець (покращення / погіршення, у годинах). Скільки ночей <6г.
+- **🌡️ Звик до спеки?** — скільки тренувань у >22°C за тиждень. Якщо жодного — одним рядком "не актуально".
+- **📉 Тренд readiness** — середня readiness vs минулий тиждень (±X), переважав STABLE / ACUTE_FATIGUE / COMPOUNDING_FATIGUE чи RECOVERING. Якщо хронічний дроп ≥20% кілька днів — виділити як 🔴.
 
 ## 📆 Щоденна розбивка
 | Дата | Сон | Deep | rHR | HRV | Стрес | Ready | BB↑ |

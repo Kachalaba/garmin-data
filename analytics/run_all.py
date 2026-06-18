@@ -14,7 +14,7 @@ from __future__ import annotations
 import sys
 
 from analytics.common import get_logger
-from analytics import hrv_baseline, rhr_anomaly, risk_scores, weather_enrich
+from analytics import hrv_baseline, rhr_anomaly, risk_scores, weather_enrich, workout_segments
 
 log = get_logger("run_all")
 
@@ -23,6 +23,7 @@ STEPS = [
     ("hrv_baseline", lambda: hrv_baseline.compute(limit_days=90)),
     ("rhr_anomaly",  lambda: rhr_anomaly.compute(limit_days=90)),
     ("weather_enrich", lambda: weather_enrich.enrich(limit_days=60, force=False)),
+    ("workout_segments", lambda: workout_segments.compute(limit_days=60, force=False)),
     ("risk_scores", lambda: risk_scores.compute(limit_days=90)),
 ]
 
