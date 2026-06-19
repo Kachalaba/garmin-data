@@ -10,12 +10,11 @@ Usage:
 
 Configuration (environment variables, all optional):
   GARMIN_DB_PATH   — path to SQLite DB    (default: ./health.db)
-  GARMIN_LOG_PATH  — path to log file     (default: ./sync.log)
+  GARMIN_LOG_PATH  — path to log file     (default: ./logs/bot.log)
   GARMIN_USER_ID   — user_id in DB        (default: 1)
 """
 
 import argparse
-import logging
 import os
 import sqlite3
 import sys
@@ -23,28 +22,20 @@ from contextlib import contextmanager
 from datetime import date, timedelta
 from pathlib import Path
 
-from garmy import AuthClient, APIClient
-from garmy.localdb.sync import SyncManager
-from garmy.localdb.progress import ProgressReporter
+from garmy import APIClient, AuthClient
 from garmy.localdb.activities_iterator import ActivitiesIterator
+from garmy.localdb.progress import ProgressReporter
+from garmy.localdb.sync import SyncManager
+
+from analytics.common import get_logger
 
 # ── Config ─────────────────────────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parent
-DB_PATH  = Path(os.getenv("GARMIN_DB_PATH",  PROJECT_ROOT / "health.db"))
-LOG_PATH = Path(os.getenv("GARMIN_LOG_PATH", PROJECT_ROOT / "sync.log"))
-USER_ID  = int(os.getenv("GARMIN_USER_ID", "1"))
+DB_PATH = Path(os.getenv("GARMIN_DB_PATH", PROJECT_ROOT / "health.db"))
+USER_ID = int(os.getenv("GARMIN_USER_ID", "1"))
 
 # ── Logging ────────────────────────────────────────────────────────────────
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    handlers=[
-        logging.FileHandler(LOG_PATH, encoding="utf-8"),
-        logging.StreamHandler(sys.stdout),
-    ],
-)
-log = logging.getLogger("garmy_sync")
+log = get_logger("garmy_sync")
 
 
 # ── DB helper ──────────────────────────────────────────────────────────────
@@ -61,9 +52,9 @@ def db_cursor():
 # ── Manager factory ────────────────────────────────────────────────────────
 def build_manager() -> SyncManager:
     auth_client = AuthClient()
-    api_client  = APIClient(auth_client=auth_client)
-    reporter    = ProgressReporter("simple")
-    manager     = SyncManager(db_path=DB_PATH, progress_reporter=reporter)
+    api_client = APIClient(auth_client=auth_client)
+    reporter = ProgressReporter("simple")
+    manager = SyncManager(db_path=DB_PATH, progress_reporter=reporter)
     manager.api_client = api_client
     manager.activities_iterator = ActivitiesIterator(
         manager.api_client,
@@ -96,7 +87,7 @@ def find_gaps(lookback_days: int = 14) -> list[date]:
         log.warning("DB not found — skipping gap check")
         return []
 
-    end   = date.today() - timedelta(days=1)   # exclude today (may still be syncing)
+    end = date.today() - timedelta(days=1)  # exclude today (may still be syncing)
     start = end - timedelta(days=lookback_days - 1)
 
     with db_cursor() as cur:
@@ -114,7 +105,7 @@ def find_gaps(lookback_days: int = 14) -> list[date]:
     gaps: list[date] = []
     for i in range(lookback_days):
         d = start + timedelta(days=i)
-        if rows.get(d.isoformat()) is None:   # missing row OR NULL sleep
+        if rows.get(d.isoformat()) is None:  # missing row OR NULL sleep
             gaps.append(d)
     return gaps
 
@@ -168,6 +159,14 @@ def show_status(days: int = 7) -> None:
 
 
 # ── CLI ────────────────────────────────────────────────────────────────────
+def positive_int(value: str) -> int:
+    """Parse a strictly positive day count for all sync modes."""
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("days must be greater than zero")
+    return parsed
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="garmy_sync",
@@ -175,15 +174,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     mode = p.add_mutually_exclusive_group()
     mode.add_argument(
-        "--fill-gaps", action="store_true",
+        "--fill-gaps",
+        action="store_true",
         help="Find and fill missing days in the lookback window (default: 14)",
     )
     mode.add_argument(
-        "--status", action="store_true",
+        "--status",
+        action="store_true",
         help="Show sync status for the last N days (default: 7)",
     )
     p.add_argument(
-        "days", type=int, nargs="?", default=None,
+        "days",
+        type=positive_int,
+        nargs="?",
+        default=None,
         help="Number of days (default: 1 sync / 14 fill-gaps / 7 status)",
     )
     return p
@@ -213,11 +217,11 @@ def main() -> int:
             return 0 if failed == 0 else 1
 
         # Default: normal sync mode
-        days    = args.days or 1
-        end     = date.today()
-        start   = end - timedelta(days=days - 1)
+        days = args.days or 1
+        end = date.today()
+        start = end - timedelta(days=days - 1)
         manager = build_manager()
-        result  = do_sync(manager, start, end)
+        result = do_sync(manager, start, end)
         return 0 if result.get("failed", 0) == 0 else 1
 
     except Exception:

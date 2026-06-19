@@ -82,9 +82,7 @@ CREATE TABLE IF NOT EXISTS activity_weather (
 
 def _hour_index(iso_hours: list[str], target_dt: datetime) -> int | None:
     """Find the index of the hour in iso_hours closest to target_dt."""
-    target_hour = target_dt.replace(minute=0, second=0, microsecond=0).isoformat(
-        timespec="minutes"
-    )
+    target_hour = target_dt.replace(minute=0, second=0, microsecond=0).isoformat(timespec="minutes")
     for i, h in enumerate(iso_hours):
         # Open-Meteo returns "2026-04-15T19:00"
         if h.startswith(target_hour[:13]):
@@ -250,10 +248,13 @@ def enrich(limit_days: int | None = None, force: bool = False) -> int:
 
 def main() -> int:
     p = argparse.ArgumentParser(prog="weather_enrich")
-    p.add_argument("--days", type=int, default=None,
-                   help="Only process activities within last N days")
-    p.add_argument("--force", action="store_true",
-                   help="Re-fetch even if a row already exists")
+    p.add_argument(
+        "--days",
+        type=int,
+        default=None,
+        help="Only process activities within last N days",
+    )
+    p.add_argument("--force", action="store_true", help="Re-fetch even if a row already exists")
     args = p.parse_args()
     try:
         enrich(args.days, args.force)

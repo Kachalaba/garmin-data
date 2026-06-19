@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 """
-rhr_anomaly.py — detect resting-heart-rate anomalies (early illness signal).
+rhr_anomaly.py — detect resting-heart-rate deviations from a personal baseline.
 
 Method (based on Stanford/Snyder lab COVID pre-symptom paper):
   1. For each day, compute rolling 28-day mean and SD of resting_heart_rate
      over the PRECEDING 28 days (excludes today — no leakage).
   2. z-score = (today.rhr - baseline_mean) / baseline_sd.
   3. Classify:
-       HIGH     → z >= 2.5 (strong anomaly, illness/overtraining candidate)
+       HIGH     → z >= 2.5 (strong deviation worth contextual review)
        ELEVATED → z >= 1.5
        LOW      → z <= -1.5 (unusual drop — could be improved fitness
                              or measurement issue; flagged for awareness)
        NORMAL   → within band
        UNKNOWN  → not enough history yet
-  4. A PERSISTENT flag is set when HIGH occurs 2+ days in a row (core
-     signal from the paper — 1-day spikes are usually noise).
+  4. A PERSISTENT flag is set when HIGH occurs 2+ days in a row.
+
+This is a wearable-data signal, not a medical diagnosis or prediction.
 
 Writes to `rhr_anomaly` table keyed by (user_id, metric_date).
 
@@ -123,9 +124,7 @@ def compute(limit_days: int | None = None) -> int:
             prev_level = level
             if idx < start_idx:
                 continue
-            to_write.append(
-                (USER_ID, metric_date, int(rhr), mean, sd, z, level, persistent)
-            )
+            to_write.append((USER_ID, metric_date, int(rhr), mean, sd, z, level, persistent))
 
         conn.executemany(
             """
@@ -163,8 +162,13 @@ def compute(limit_days: int | None = None) -> int:
 
 def main() -> int:
     p = argparse.ArgumentParser(prog="rhr_anomaly")
-    p.add_argument("days", type=int, nargs="?", default=None,
-                   help="Recompute only last N days (default: all history)")
+    p.add_argument(
+        "days",
+        type=int,
+        nargs="?",
+        default=None,
+        help="Recompute only last N days (default: all history)",
+    )
     args = p.parse_args()
     try:
         compute(args.days)

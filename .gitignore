@@ -8,6 +8,12 @@ health.db-shm
 # Логи
 sync.log
 *.log
+logs/
+
+# Runtime output
+reports/
+backups/
+*.lock
 
 # Python
 __pycache__/

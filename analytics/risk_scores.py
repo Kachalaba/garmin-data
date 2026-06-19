@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-risk_scores.py — compute six risk/prediction scores per day.
+risk_scores.py — compute six transparent wearable-data indicators per day.
 
 All scores use only data from ON or BEFORE the target day (no look-ahead).
 Each metric cites the peer-reviewed source it adapts.
 
-  1. illness_risk_score (0–100)
+  1. physiological deviation signal (stored as illness_risk_score for compatibility)
      Mishra et al. 2020, "Pre-symptomatic detection of COVID-19 from smartwatch
      data" (Stanford / Snyder lab). Weighted combination of RHR z-score +
      persistence, HRV baseline status, sleep-respiration z, SpO2 drop vs
@@ -115,7 +115,9 @@ def _slope(ys: list[float]) -> float:
     return num / den if den > 0 else 0.0
 
 
-def _window_nonnull(series: list[tuple], i: int, size: int, exclude_today: bool = False) -> list[float]:
+def _window_nonnull(
+    series: list[tuple], i: int, size: int, exclude_today: bool = False
+) -> list[float]:
     """Return non-null values from the window of `size` rows ending at index i
     (inclusive of i unless exclude_today=True)."""
     end = i if exclude_today else i + 1
@@ -135,7 +137,7 @@ def _parse_date(md) -> date | None:
 
 
 def _illness(rhr_z, rhr_persist, hrv_status, resp_z, spo2_drop):
-    """Compute illness risk score + level + drivers.
+    """Compute a physiological deviation score + level + drivers.
 
     Returns (score, level, drivers_str, components_present_int).
     All inputs may be None; None inputs simply don't contribute.
@@ -181,10 +183,12 @@ def _illness(rhr_z, rhr_persist, hrv_status, resp_z, spo2_drop):
     if present == 0:
         return None, "UNKNOWN", None, 0
 
-    raw = ((rhr_component + rhr_bonus) * 0.40
-           + hrv_component * 0.30
-           + resp_component * 0.20
-           + spo2_component * 0.10)
+    raw = (
+        (rhr_component + rhr_bonus) * 0.40
+        + hrv_component * 0.30
+        + resp_component * 0.20
+        + spo2_component * 0.10
+    )
     score = _clamp(raw, 0, 100)
 
     # More than 2 of 4 inputs missing → classification UNKNOWN
@@ -352,8 +356,8 @@ def compute(limit_days: int | None = None) -> int:
             # ── 2. ACWR ────────────────────────────────────────────────
             # Require ≥ 7 days of preceding history for any ACWR output.
             if i >= 7:
-                acute_vals = [v for _, v in load_series[max(0, i - 6): i + 1]]
-                chronic_vals = [v for _, v in load_series[max(0, i - 27): i + 1]]
+                acute_vals = [v for _, v in load_series[max(0, i - 6) : i + 1]]
+                chronic_vals = [v for _, v in load_series[max(0, i - 27) : i + 1]]
                 acute_load = sum(acute_vals) / len(acute_vals) if acute_vals else 0.0
                 chronic_load = sum(chronic_vals) / len(chronic_vals) if chronic_vals else 0.0
                 if chronic_load > 0:
@@ -380,10 +384,7 @@ def compute(limit_days: int | None = None) -> int:
             rhr_30d = _window_nonnull(rhr_series, i, 30)
             hrv_30d = _window_nonnull(hrv_series, i, 30)
 
-            if (
-                len(rhr_7d) >= 4 and len(hrv_7d) >= 4
-                and len(rhr_30d) >= 10 and len(hrv_30d) >= 10
-            ):
+            if len(rhr_7d) >= 4 and len(hrv_7d) >= 4 and len(rhr_30d) >= 10 and len(hrv_30d) >= 10:
                 rhr_trend = _slope(rhr_7d)
                 hrv_trend = _slope(hrv_7d)
                 rhr_sd_30 = _sd(rhr_30d, _mean(rhr_30d))
@@ -414,7 +415,7 @@ def compute(limit_days: int | None = None) -> int:
                 # Conservative: don't normalize to an unhealthy pattern —
                 # floor target at 7.0h even if personal baseline is lower.
                 target = max(baseline, 7.0)
-                sleep_14d = [v for _, v in sleep_series[max(0, i - 13): i + 1] if v is not None]
+                sleep_14d = [v for _, v in sleep_series[max(0, i - 13) : i + 1] if v is not None]
                 deficits = [max(0.0, target - s) for s in sleep_14d]
                 sleep_debt_hours = sum(deficits)
                 if sleep_debt_hours < 3:
@@ -439,7 +440,7 @@ def compute(limit_days: int | None = None) -> int:
 
                 def _hr_temp_ratio(a):
                     mins = a["duration_seconds"] / 60.0
-                    return a["avg_heart_rate"] / (mins ** 0.1) if mins > 0 else None
+                    return a["avg_heart_rate"] / (mins**0.1) if mins > 0 else None
 
                 recent_warm = []
                 prev_warm = []
@@ -457,8 +458,10 @@ def compute(limit_days: int | None = None) -> int:
                     elif prev_cut < ad <= recent_cut:
                         prev_warm.append(ratio)
 
-                if len(recent_warm) >= 3 and len(prev_warm) >= 2 and (
-                    len(recent_warm) + len(prev_warm) >= 5
+                if (
+                    len(recent_warm) >= 3
+                    and len(prev_warm) >= 2
+                    and (len(recent_warm) + len(prev_warm) >= 5)
                 ):
                     rmean = _mean(recent_warm)
                     pmean = _mean(prev_warm)
@@ -502,8 +505,7 @@ def compute(limit_days: int | None = None) -> int:
                 data_quality = "PARTIAL"
             else:
                 missing = sum(
-                    1 for v in (rhr_today, hrv_today, sleep_today, ready_today)
-                    if v is None
+                    1 for v in (rhr_today, hrv_today, sleep_today, ready_today) if v is None
                 )
                 data_quality = "PARTIAL" if missing > 0 else "FULL"
 
@@ -572,7 +574,9 @@ def compute(limit_days: int | None = None) -> int:
                 parts = []
                 if a["illness_risk_level"] in ("HIGH", "ELEVATED"):
                     drv = a["illness_risk_drivers"] or "—"
-                    parts.append(f"illness={a['score']:.0f} {a['illness_risk_level']} drivers={drv}")
+                    parts.append(
+                        f"deviation={a['score']:.0f} {a['illness_risk_level']} drivers={drv}"
+                    )
                 if a["acwr_level"] == "DANGER_ZONE":
                     parts.append(f"ACWR={a['acwr']} DANGER_ZONE")
                 log.warning(f"   {a['metric_date']}: " + "; ".join(parts))
@@ -584,8 +588,13 @@ def compute(limit_days: int | None = None) -> int:
 
 def main() -> int:
     p = argparse.ArgumentParser(prog="risk_scores")
-    p.add_argument("days", type=int, nargs="?", default=None,
-                   help="Recompute only last N days (default: all history)")
+    p.add_argument(
+        "days",
+        type=int,
+        nargs="?",
+        default=None,
+        help="Recompute only last N days (default: all history)",
+    )
     args = p.parse_args()
     try:
         compute(args.days)

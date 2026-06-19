@@ -7,7 +7,7 @@ Method (Altini / HRV4Training / Elite HRV):
   2. Baseline = rolling 7-day mean of lnHRV (trend).
   3. Normal range = ±1 SD around the 60-day rolling mean of lnHRV.
   4. Status:
-       SUPPRESSED → today's lnHRV below lower bound (fatigue/illness risk)
+       SUPPRESSED → today's lnHRV below the personal lower bound
        ELEVATED   → today's lnHRV above upper bound (supercompensation)
        NORMAL     → within band
        UNKNOWN    → not enough history yet
@@ -24,15 +24,14 @@ from __future__ import annotations
 import argparse
 import math
 import sys
-from datetime import date
 
 from analytics.common import USER_ID, db_connection, get_logger
 
 log = get_logger("hrv_baseline")
 
-BASELINE_WINDOW = 7       # days for rolling baseline (trend)
-BAND_WINDOW = 60          # days for rolling mean/SD (normal range)
-BAND_SD_MULT = 1.0        # ±1 SD band
+BASELINE_WINDOW = 7  # days for rolling baseline (trend)
+BAND_WINDOW = 60  # days for rolling mean/SD (normal range)
+BAND_SD_MULT = 1.0  # ±1 SD band
 
 
 DDL = """
@@ -163,15 +162,23 @@ def compute(limit_days: int | None = None) -> int:
             (USER_ID,),
         ).fetchall()
         if recent:
-            log.info("last 7d status distribution: " + ", ".join(f"{r['status']}={r['n']}" for r in recent))
+            log.info(
+                "last 7d status distribution: "
+                + ", ".join(f"{r['status']}={r['n']}" for r in recent)
+            )
 
         return len(to_write)
 
 
 def main() -> int:
     p = argparse.ArgumentParser(prog="hrv_baseline")
-    p.add_argument("days", type=int, nargs="?", default=None,
-                   help="Recompute only last N days (default: all history)")
+    p.add_argument(
+        "days",
+        type=int,
+        nargs="?",
+        default=None,
+        help="Recompute only last N days (default: all history)",
+    )
     args = p.parse_args()
     try:
         compute(args.days)

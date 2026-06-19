@@ -38,7 +38,7 @@ import sys
 import time
 
 try:
-    from garmy import AuthClient, APIClient
+    from garmy import APIClient, AuthClient
 except ImportError:
     print("garmy not installed. Run: pip install -r requirements.txt", file=sys.stderr)
     sys.exit(1)
@@ -205,8 +205,7 @@ def compute(limit_days: int | None = None, force: bool = False) -> int:
             )
         sql = (
             "SELECT a.activity_id, a.activity_date, a.activity_name "
-            "FROM activities a WHERE " + " AND ".join(where) +
-            " ORDER BY a.activity_date ASC"
+            "FROM activities a WHERE " + " AND ".join(where) + " ORDER BY a.activity_date ASC"
         )
         targets = conn.execute(sql, params).fetchall()
 
@@ -231,9 +230,7 @@ def compute(limit_days: int | None = None, force: bool = False) -> int:
                 "DELETE FROM workout_intervals WHERE user_id = ? AND activity_id = ?",
                 (USER_ID, act_id),
             )
-            records = [
-                _lap_record(lap, sport, act_id, row["activity_date"]) for lap in laps
-            ]
+            records = [_lap_record(lap, sport, act_id, row["activity_date"]) for lap in laps]
             conn.executemany(
                 """
                 INSERT OR REPLACE INTO workout_intervals
@@ -258,10 +255,13 @@ def compute(limit_days: int | None = None, force: bool = False) -> int:
 
 def main() -> int:
     p = argparse.ArgumentParser(prog="workout_segments")
-    p.add_argument("--days", type=int, default=None,
-                   help="Only process activities within last N days")
-    p.add_argument("--force", action="store_true",
-                   help="Re-fetch even if rows already exist")
+    p.add_argument(
+        "--days",
+        type=int,
+        default=None,
+        help="Only process activities within last N days",
+    )
+    p.add_argument("--force", action="store_true", help="Re-fetch even if rows already exist")
     args = p.parse_args()
     try:
         compute(args.days, args.force)
