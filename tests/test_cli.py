@@ -58,3 +58,15 @@ def test_backup_prints_created_path(settings_factory, capsys):
 
     assert exit_code == 0
     assert str(expected) in capsys.readouterr().out
+
+
+def test_healthcheck_rejects_corrupt_database(settings_factory, capsys):
+    settings = settings_factory()
+    settings.db_path.write_bytes(b"this is not a sqlite database")
+
+    exit_code = main(["healthcheck"], settings=settings)
+
+    output = capsys.readouterr().out
+    assert exit_code == 1
+    assert "Status: failed; usable: no" in output
+    assert "SQLite quick_check" in output
